@@ -1,0 +1,42 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+
+  build:
+    commands:
+      - echo "Building Maven project..."
+      - mvn clean install
+      - ls
+
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+      - echo "[]" > imagedefinitions.json
+      - >
+        for dockerfile in Dockerfile.spring-boot; do
+          container=$(basename $dockerfile .Dockerfile)
+          
+          # Remove "dockerfile." prefix and convert to lowercase
+          container=$(echo "$container" | sed -E 's/^(dockerfile|Dockerfile)\.//; s/[A-Z]/\L&/g')
+          echo $container
+
+          echo "Building Docker image for $container using $dockerfile..."
+          docker build -t $container -f $dockerfile .
+          docker tag $container:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$container:latest
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$container:latest
+
+          echo "Adding entry for $container to imagedefinitions.json..."
+          entry=$(printf '{"name":"%s","imageUri":"%s"}' $container $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$container:latest)
+          jq ". += [$entry]" imagedefinitions.json > tmp.json && mv tmp.json imagedefinitions.json
+        done
+
+        cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
+    - spring-boot-web.jar
