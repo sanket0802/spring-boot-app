@@ -7,11 +7,7 @@ files:
     destination: target/
 
 hooks:
-  ApplicationStop:
-    - location: stop-process.sh
-      timeout: 180
-      runas: root
   ApplicationStart:
-    - location: start-process.sh
+    - location: start.sh
       timeout: 180
       runas: root
