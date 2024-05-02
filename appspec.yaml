@@ -3,8 +3,8 @@ version: 0.0
 os: linux
 
 files:
-  - source: /spring-boot-web.jar
-    destination: 
+  - source: spring-boot-web.jar
+    destination: target/
 
 hooks:
   ApplicationStop:
